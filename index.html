@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Don’t take the bait! A mini phishing game</title>
+<meta name="description" content="A five-minute phishing scenario game. Spot the hook, then report it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14264A; --paper:#FFFCF3; --coral:#FF5A4E; --lagoon:#17B3A8; --lagoon-d:#0B7F77;
+  --sun:#FFC933; --grape:#6C4DF6; --pink:#FF9EC4; --sky:#BFE8FF; --mist:#EEF1F7;
+  --disp:"Fredoka",ui-rounded,"Trebuchet MS",system-ui,sans-serif;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --lift:0 5px 0 var(--ink);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;font:16px/1.5 var(--ui);color:var(--ink);
+  background:linear-gradient(180deg,#BFE8FF 0,#C9F2EA 360px,#A6E6DA 100%) fixed;overflow-x:hidden}
+.bubbles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.bubbles i{position:absolute;bottom:-70px;border-radius:50%;border:2px solid rgba(20,38,74,.22);background:rgba(255,255,255,.38);animation:rise linear infinite}
+@keyframes rise{to{transform:translate(24px,-118vh)}}
+#app{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:16px 16px 64px}
+h1,h2,h3{font-family:var(--disp);margin:0;line-height:1.1;font-weight:600}
+p{margin:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:4px solid var(--grape);outline-offset:3px}
+
+/* HUD */
+.hud{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:600;font-size:clamp(20px,3.4vw,26px)}
+.brand .fish{width:54px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--paper);border:3px solid var(--ink);border-radius:999px;padding:4px 14px;font-family:var(--disp);font-weight:500;font-size:17px;box-shadow:0 3px 0 var(--ink);white-space:nowrap}
+.chip b{font-weight:700;margin-left:2px}
+.chip.hot{background:var(--sun)}
+.line{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-bottom:16px}
+.tier{background:var(--grape);color:#fff;border:3px solid var(--ink);border-radius:10px;padding:2px 12px;font-family:var(--disp);font-size:16px}
+.line ol{list-style:none;display:flex;gap:6px;padding:0;margin:0;flex:1 1 200px;align-items:center;min-width:180px}
+.line li{flex:1;height:16px;max-width:42px;border-radius:999px;border:3px solid var(--ink);background:var(--paper)}
+.line li.best{background:var(--lagoon)} .line li.good{background:var(--sun)}
+.line li.meh{background:var(--pink)} .line li.bad{background:var(--coral)}
+.line li.now{background:#fff;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(108,77,246,.35)}}
+.count{font-family:var(--disp);font-size:16px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--disp);font-weight:600;font-size:20px;color:var(--ink);
+  background:var(--sun);border:3px solid var(--ink);border-radius:999px;padding:10px 26px;min-height:48px;cursor:pointer;box-shadow:var(--lift);transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 7px 0 var(--ink)}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn.alt{background:var(--paper)} .btn.grape{background:var(--grape);color:#fff}
+.btn.big{font-size:clamp(22px,4vw,28px);padding:14px 38px}
+
+/* Intro */
+.hero{text-align:center;padding-top:6px}
+.hero-art{position:relative;height:210px;max-width:560px;margin:0 auto 6px}
+.hero-art .fish{position:absolute;left:4%;top:62px;width:170px;animation:bob 3.2s ease-in-out infinite}
+.hero-art .hookwrap{position:absolute;right:12%;top:-6px;width:150px;transform-origin:50% 0;animation:swing 4.5s ease-in-out infinite}
+.hook-line{width:3px;height:92px;background:var(--ink);margin:0 auto}
+.hook-j{display:block;width:70px;margin:-2px auto 0}
+.bait{position:absolute;right:2%;top:128px;width:138px;background:var(--sun);border:3px solid var(--ink);border-radius:10px;padding:6px 8px;font-family:var(--disp);font-weight:600;font-size:17px;line-height:1.15;transform:rotate(-6deg);box-shadow:3px 3px 0 var(--ink)}
+.say{position:absolute;left:40%;top:30px;background:#fff;border:3px solid var(--ink);border-radius:16px;padding:4px 14px;font-family:var(--disp);font-size:20px}
+.say::after{content:"";position:absolute;left:-14px;bottom:8px;border:8px solid transparent;border-right:14px solid var(--ink)}
+@keyframes bob{50%{transform:translateY(-10px) rotate(-2deg)}}
+@keyframes swing{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(5deg)}}
+.hero h1{font-size:clamp(40px,9vw,88px);font-weight:700;letter-spacing:-.01em}
+.lead{font-size:clamp(18px,2.6vw,22px);max-width:560px;margin:12px auto 22px}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:34px 0 18px;text-align:left}
+.step{background:var(--paper);border:3px solid var(--ink);border-radius:20px;padding:16px 18px;box-shadow:var(--lift)}
+.step:nth-child(2){border-radius:14px 26px 14px 26px} .step:nth-child(3){border-radius:26px 14px 26px 14px}
+.step .em{font-size:30px;display:block;margin-bottom:4px}
+.step h3{font-size:21px;margin-bottom:4px}
+.bait-card{background:var(--paper);border:3px solid var(--ink);border-radius:22px;padding:20px;box-shadow:var(--lift);text-align:left;margin-top:22px}
+.bait-card h2{font-size:26px;margin-bottom:12px}
+.bait-card ul{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.bait-card li{display:flex;gap:12px;align-items:flex-start}
+.fine{margin-top:22px;font-size:14px;opacity:.8}
+.L{flex:none;display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:3px solid var(--ink);font-family:var(--disp);font-weight:700;font-size:19px}
+.L.B{background:var(--sun)} .L.A{background:var(--pink)} .L.I{background:var(--lagoon)} .L.T{background:var(--grape);color:#fff}
+.L.sm{width:26px;height:26px;border-radius:8px;border-width:2px;font-size:15px}
+
+/* Scenario setup */
+.setup{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.setup .fish{width:74px;flex:none}
+.setup .talk{position:relative;background:#fff;border:3px solid var(--ink);border-radius:18px;padding:10px 16px;font-size:17px;font-weight:600}
+.setup .talk::before{content:"";position:absolute;left:-15px;top:50%;margin-top:-8px;border:8px solid transparent;border-right:14px solid var(--ink)}
+.setup .talk small{display:block;font-family:var(--disp);font-weight:500;font-size:15px;opacity:.75}
+
+/* Stage */
+.stage{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:minmax(0,1fr)}}
+.winwrap{position:relative}
+.win{background:var(--paper);border:3px solid var(--ink);border-radius:18px;box-shadow:var(--lift);overflow:hidden}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:3px solid var(--ink);font-family:var(--disp);font-weight:500;font-size:16px;background:var(--sky)}
+.bar i{width:11px;height:11px;border-radius:50%;border:2px solid var(--ink);background:#fff}
+.bar span{margin-left:8px}
+.win[data-ch=chat] .bar{background:#D9CCFF} .win[data-ch=calendar] .bar{background:#FFD3E4}
+.win[data-ch=consent] .bar{background:#FFE9A8} .win[data-ch=push] .bar{background:#9FB4E8}
+.win[data-ch=call] .bar{background:#FFC2BC} .win[data-ch=usb] .bar{background:#BFEFD9} .win[data-ch=qr] .bar{background:var(--sky)}
+.wbody{padding:16px 18px;font-size:15.5px}
+.status{border-top:2px solid #D9DEE9;background:var(--mist);padding:7px 14px;font-size:13px;color:#4B5877;min-height:34px;overflow-wrap:anywhere}
+.status.live{color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+
+/* Inspectable clues */
+.tap{cursor:pointer;background:rgba(108,77,246,.09);border-bottom:2px dotted var(--grape);border-radius:4px;padding:0 3px;margin:0 -1px}
+.tap:hover{background:rgba(255,201,51,.5)}
+.tap.on{background:#FFE58A;border-bottom:2px solid var(--ink)}
+.tap.on::after{content:"🔎";font-size:.8em;margin-left:3px}
+.tap.found{background:#B8F0E0;border-bottom:2px solid var(--lagoon-d);cursor:default}
+.tap.found::after{content:"✓";font-weight:800;margin-left:3px;color:var(--lagoon-d)}
+.tap.missed{background:#FFE3DF;border-bottom:2px dashed var(--coral);cursor:default;animation:flash 1.1s ease-in-out 2}
+.tap.missed::after{content:"!";font-weight:800;margin-left:3px;color:#C23126}
+.tap.neutral{background:var(--mist);border-bottom:2px solid #B8C0D3;cursor:default}
+.tap.on,.tap.found,.tap.missed,.tap.neutral{color:var(--ink)}
+.tap.locked{cursor:default}
+.tap.blk{display:inline-block;padding:4px;margin:0 0 10px;border-bottom-width:3px}
+.tap.blk .qr{margin:0}
+@keyframes flash{50%{background:#FFB4AC}}
+
+/* Email and calendar */
+.mail{font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1B2433}
+.mail .row{display:flex;gap:10px;padding:3px 0;font-size:14px}
+.mail .lbl{flex:none;width:52px;color:#6A7488}
+.mail .addr{color:#5C667B}
+.mail .subj{font-size:19px;font-weight:700;margin:2px 0 10px;line-height:1.25}
+.mail hr{border:0;border-top:1px solid #DDE2EC;margin:10px 0 14px}
+.mail p{margin:0 0 12px}
+.mail .mbtn{display:inline-block;background:#1A73E8;color:#fff;border-radius:6px;padding:10px 20px;font-weight:700;margin:2px 0 14px}
+.mail .mbtn .tap{background:transparent;border-bottom:2px dotted #fff}
+.mail .mbtn .tap.on{background:#0B4EA8;border-bottom-color:#FFE58A}
+.mail .mbtn .tap.found{background:#B8F0E0;border-bottom:2px solid var(--lagoon-d)}
+.mail .mbtn .tap.missed{background:#FFE3DF;border-bottom:2px dashed var(--coral)}
+.mail .mbtn .tap.neutral{background:var(--mist);border-bottom:2px solid #B8C0D3}
+.chipfile{display:inline-block;border:1px solid #CBD2E0;border-radius:8px;padding:6px 10px;background:#F6F7FB;font-size:14px;margin:0 0 12px}
+.quote{border-left:3px solid #CBD2E0;padding-left:12px;color:#6A7488;font-size:13.5px;margin-top:10px}
+.cal-top{display:flex;gap:14px;align-items:center;margin-bottom:10px}
+.cal-date{flex:none;width:62px;border:3px solid var(--ink);border-radius:12px;overflow:hidden;text-align:center;background:#fff;font-family:var(--disp)}
+.cal-date b{display:block;background:var(--coral);color:var(--ink);font-size:13px;padding:1px 0}
+.cal-date span{display:block;font-size:28px;font-weight:700;line-height:1.15}
+.cal-title{font-family:var(--disp);font-weight:600;font-size:22px;line-height:1.15}
+.rsvp{display:flex;gap:8px;margin-top:12px;pointer-events:none;opacity:.7}
+.rsvp span{border:2px solid #98A2B8;border-radius:999px;padding:3px 16px;font-size:14px;font-weight:600}
+.qr{display:grid;grid-template-columns:repeat(21,1fr);width:176px;height:176px;margin:6px 0 14px;padding:8px;background:#fff;border:3px solid var(--ink);border-radius:10px}
+.qr i{background:#fff} .qr i.d{background:var(--ink)}
+
+/* Chat */
+.chat-head{display:flex;align-items:center;gap:12px;padding-bottom:10px;border-bottom:2px solid #DDE2EC;margin-bottom:6px}
+.avatar{flex:none;width:44px;height:44px;border-radius:50%;background:#C9CFE0;border:3px solid var(--ink);display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:20px}
+.chat-head small{display:block;color:#5C667B;font-size:13px}
+.bub{background:var(--mist);border-radius:6px 16px 16px 16px;padding:9px 13px;margin:9px 0;max-width:88%;font-size:15.5px}
+
+/* Consent, push, call, usb */
+.consent{max-width:420px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1B2433}
+.consent .ctx{background:#FFF4CF;border:2px solid #E5C25A;border-radius:10px;padding:8px 12px;margin-bottom:14px;font-size:14px}
+.consent .app{display:flex;gap:12px;align-items:center;margin-bottom:6px}
+.consent .appic{flex:none;width:46px;height:46px;border-radius:12px;background:var(--grape);display:grid;place-items:center;font-size:24px}
+.consent h4{margin:0;font-size:18px} .consent small{color:#5C667B;display:block}
+.consent .acct{font-size:13px;color:#5C667B;margin:10px 0 8px}
+.consent ul{list-style:none;margin:0 0 14px;padding:0}
+.consent li{display:flex;gap:10px;padding:8px 0;border-top:1px solid #E1E5EE;font-size:14.5px}
+.consent li::before{content:"☑";color:#1A73E8}
+.consent .btns{display:flex;justify-content:flex-end;gap:10px;pointer-events:none;opacity:.7}
+.consent .btns span{padding:7px 18px;border-radius:6px;font-weight:700;font-size:14px}
+.phone{max-width:320px;margin:0 auto;border-radius:28px;padding:22px 14px 18px;color:#fff;background:linear-gradient(170deg,#1C3166,#14264A 60%,#2B1F66);border:3px solid var(--ink)}
+.phone .time{font-family:var(--disp);font-weight:500;font-size:62px;text-align:center;line-height:1}
+.phone .date{text-align:center;opacity:.85;margin:4px 0 18px;font-size:15px}
+.notif{background:rgba(255,255,255,.95);color:var(--ink);border-radius:18px;padding:12px 14px}
+.notif .app{font-size:12.5px;font-weight:700;color:#5C667B;margin-bottom:4px}
+.notif h4{margin:0 0 4px;font-size:17px;font-family:var(--ui)}
+.notif p{font-size:14.5px;margin:3px 0}
+.notif .btns{display:flex;gap:8px;margin-top:10px;pointer-events:none}
+.notif .btns span{flex:1;text-align:center;border-radius:10px;padding:8px 4px;font-weight:700;font-size:14px;background:var(--mist)}
+.callscr{max-width:340px;margin:0 auto;background:linear-gradient(180deg,#2A3F7A,#14264A);color:#fff;border-radius:26px;padding:20px 16px 16px;border:3px solid var(--ink)}
+.callscr .who{text-align:center;margin-bottom:12px}
+.callscr .av{width:64px;height:64px;border-radius:50%;margin:0 auto 6px;background:#fff;color:var(--ink);display:grid;place-items:center;font-family:var(--disp);font-size:32px;font-weight:700}
+.callscr .nm{font-size:20px;font-weight:700} .callscr .sub{opacity:.8;font-size:14px}
+.say-line{background:rgba(255,255,255,.95);color:var(--ink);border-radius:14px;padding:9px 12px;margin:8px 0;font-size:15px}
+.usbscene{background:repeating-linear-gradient(90deg,#F3D9A4 0 34px,#EFD09A 34px 36px);border:3px solid var(--ink);border-radius:14px;padding:26px 16px 16px;text-align:center}
+.usb{display:inline-flex;align-items:center;filter:drop-shadow(0 6px 0 rgba(20,38,74,.25));transform:rotate(-4deg);margin:6px 0 14px}
+.usb .plug{width:64px;height:40px;background:#C9CFDB;border:3px solid var(--ink);border-radius:6px 0 0 6px;display:grid;place-items:center;border-right:0}
+.usb .plug .tap{font-size:12px;font-weight:800;background:transparent;border-bottom:2px dotted var(--ink)}
+.usb .shell{width:150px;height:64px;background:#3A66D6;border:3px solid var(--ink);border-radius:0 18px 18px 0;display:grid;place-items:center}
+.sticker{display:inline-block;background:var(--sun);border:2px solid var(--ink);padding:3px 8px;font-family:var(--disp);font-weight:600;font-size:13px;line-height:1.1;transform:rotate(3deg)}
+.usbcap{background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:6px 12px;display:inline-block;font-size:15px}
+
+/* Stamp */
+.stamp{position:absolute;left:50%;top:44%;z-index:5;pointer-events:none;transform:translate(-50%,-50%) rotate(-9deg);
+  font-family:var(--disp);font-weight:700;font-size:clamp(40px,8vw,64px);padding:2px 22px;border:6px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);white-space:nowrap;animation:stamp .38s cubic-bezier(.2,1.5,.4,1) both}
+.stamp.phish{background:var(--coral)} .stamp.legit{background:var(--lagoon)}
+@keyframes stamp{from{transform:translate(-50%,-50%) rotate(-24deg) scale(2.4);opacity:0}to{transform:translate(-50%,-50%) rotate(-9deg) scale(1);opacity:.97}}
+
+/* Side panels */
+.panel{background:var(--paper);border:3px solid var(--ink);border-radius:20px;box-shadow:var(--lift);padding:18px}
+.panel h2{font-size:26px;margin-bottom:4px}
+.hint{font-size:14.5px;margin-bottom:10px}
+.found-count{display:inline-block;background:var(--sun);border:3px solid var(--ink);border-radius:999px;padding:1px 12px;font-family:var(--disp);font-size:15px;margin-bottom:12px}
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:12px;text-align:left;width:100%;font:600 16px/1.3 var(--ui);color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:16px;padding:10px 12px;min-height:56px;cursor:pointer;box-shadow:0 4px 0 var(--ink);transition:transform .08s,box-shadow .08s,background .08s}
+.opt:hover{background:#FFF3C4;transform:translateY(-2px);box-shadow:0 6px 0 var(--ink)}
+.opt:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.opt .ic{flex:none;width:38px;height:38px;border-radius:50%;background:var(--sun);border:3px solid var(--ink);display:grid;place-items:center;font-size:19px}
+.fb{padding:0;overflow:hidden}
+.fb-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:3px solid var(--ink)}
+.fb-head .fish{width:84px;flex:none}
+.fb-head h2{font-size:28px;margin:0}
+.fb-head .pts{font-family:var(--disp);font-size:18px;font-weight:500}
+.fb.best .fb-head{background:var(--lagoon)} .fb.good .fb-head{background:var(--sun)}
+.fb.meh .fb-head{background:var(--pink)} .fb.bad .fb-head{background:var(--coral)}
+.fb-body{padding:14px 16px 18px;display:grid;gap:14px}
+.fb-body h3{font-size:18px;margin-bottom:4px}
+.truth{font-family:var(--disp);font-size:19px;font-weight:600}
+.clues{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.clues li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;padding:8px 10px;border-radius:12px;border:2px solid var(--ink);background:#fff}
+.clues li.found{background:#E3F8F1} .clues li.missed{background:#FFF0EE;border-style:dashed}
+.clues em{font-style:normal;font-family:var(--disp);font-size:13.5px;margin-left:6px;padding:0 8px;border-radius:999px;border:2px solid var(--ink);background:#fff}
+.tip{background:#FFF4CF;border:3px solid var(--ink);border-radius:14px;padding:10px 14px;font-size:15px}
+details.others{font-size:14.5px}
+details.others summary{cursor:pointer;font-family:var(--disp);font-size:17px;font-weight:600}
+details.others ul{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:8px}
+.tag{display:inline-block;font-family:var(--disp);font-size:13px;font-weight:600;border:2px solid var(--ink);border-radius:999px;padding:0 9px;margin-right:6px}
+.tag.best{background:var(--lagoon)} .tag.good{background:var(--sun)} .tag.meh{background:var(--pink)} .tag.bad{background:var(--coral)}
+
+/* End */
+.end h1{font-size:clamp(34px,7vw,60px)}
+.end-top{display:grid;grid-template-columns:minmax(0,220px) 1fr;gap:20px;align-items:center;background:var(--paper);border:3px solid var(--ink);border-radius:26px;box-shadow:var(--lift);padding:20px;margin-bottom:20px}
+@media (max-width:640px){.end-top{grid-template-columns:1fr;text-align:center}.end-top .fish{max-width:180px;margin:0 auto}}
+.rank{font-family:var(--disp);font-weight:700;font-size:clamp(28px,5vw,42px);line-height:1.05;margin:2px 0 6px}
+.bigscore{display:inline-block;background:var(--sun);border:3px solid var(--ink);border-radius:999px;padding:2px 18px;font-family:var(--disp);font-size:24px;font-weight:600;margin-bottom:8px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.tile{background:var(--paper);border:3px solid var(--ink);border-radius:16px;padding:12px;text-align:center;box-shadow:0 4px 0 var(--ink)}
+.tile b{display:block;font-family:var(--disp);font-size:32px;line-height:1.1}
+.tile span{font-size:14px}
+.sect{background:var(--paper);border:3px solid var(--ink);border-radius:22px;box-shadow:var(--lift);padding:18px;margin-bottom:20px}
+.sect h2{font-size:24px;margin-bottom:12px}
+.letters{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.letters div{display:flex;gap:10px;align-items:center;font-size:15px}
+.badges{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.badge{display:flex;gap:10px;align-items:center;border:3px solid var(--ink);border-radius:16px;padding:10px 12px;background:#fff}
+.badge .bi{font-size:28px;flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--sun);border:3px solid var(--ink)}
+.badge small{display:block;font-size:13px;line-height:1.3}
+.badge b{font-family:var(--disp);font-size:17px;font-weight:600}
+.badge.lock{background:var(--mist);border-style:dashed;opacity:.8} .badge.lock .bi{background:#D5DBE8;filter:grayscale(1)}
+.recap{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.recap li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:2px solid var(--ink);border-radius:12px;background:#fff;font-size:15px}
+.recap .ri{font-size:22px;flex:none}
+.recap small{display:block;color:#4B5877}
+.real{background:var(--coral);border:3px solid var(--ink);border-radius:22px;box-shadow:var(--lift);padding:18px 20px;margin-bottom:20px}
+.real h2{font-size:26px;margin-bottom:6px}
+.actions{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+#toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,30px);opacity:0;z-index:20;background:var(--ink);color:#fff;border-radius:999px;padding:10px 20px;font-family:var(--disp);font-size:17px;transition:.25s;pointer-events:none}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.fish{display:block;height:auto}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .bubbles{display:none}
+}
+@media (max-width:520px){
+  #app{padding:12px 12px 56px}
+  .hero-art{height:230px} .hero-art .fish{width:130px;top:104px;left:0} .say{left:40%;top:70px;font-size:17px} .bait{top:150px;right:0;width:118px;font-size:15px}
+  .hero-art .hookwrap{right:2%}
+  .setup .fish{width:56px}
+}
+</style>
+</head>
+<body>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
+<main id="app"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript><p style="padding:24px;position:relative;z-index:2">This game needs JavaScript. Please enable it and reload.</p></noscript>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- helpers ---------- */
+var $ = function(s, el){ return (el||document).querySelector(s); };
+var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+/* ---------- mascot: Finn the fish ---------- */
+function fish(mood, cls){
+  mood = mood || 'idle';
+  var INK='#14264A';
+  var mouths = {
+    idle:'<path d="M106 54 Q112 59 118 53" fill="none" stroke="'+INK+'" stroke-width="3" stroke-linecap="round"/>',
+    happy:'<path d="M104 51 Q112 67 121 51 Z" fill="'+INK+'"/><path d="M108 57 Q112 62 117 57" fill="#FF9EC4"/>',
+    cool:'<path d="M105 53 Q113 61 120 52" fill="none" stroke="'+INK+'" stroke-width="3" stroke-linecap="round"/>',
+    oops:'<ellipse cx="113" cy="55" rx="4.5" ry="6" fill="'+INK+'"/>'
+  };
+  var eye = mood==='cool'
+    ? '<path d="M82 30 H112 V43 Q112 49 104 49 H92 Q82 49 82 43 Z" fill="'+INK+'"/><path d="M86 34 H97" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>'
+    : '<circle cx="96" cy="38" r="9.5" fill="#fff" stroke="'+INK+'" stroke-width="3"/><circle cx="'+(mood==='oops'?'95':'98.5')+'" cy="38" r="'+(mood==='oops'?'3':'4.2')+'" fill="'+INK+'"/><circle cx="100" cy="36.4" r="1.4" fill="#fff"/>';
+  var extra = '';
+  if(mood==='oops'){
+    extra = '<path d="M128 0 V60 Q128 78 113 73" fill="none" stroke="'+INK+'" stroke-width="3" stroke-linecap="round"/>'+
+            '<path d="M103 8 Q108 18 103 22 Q98 18 103 8Z" fill="#6EC8FF" stroke="'+INK+'" stroke-width="2"/>';
+  } else if(mood==='happy' || mood==='cool'){
+    extra = '<path d="M126 12 l2.4 6 6 2.4 -6 2.4 -2.4 6 -2.4 -6 -6 -2.4 6 -2.4z" fill="#fff" stroke="'+INK+'" stroke-width="2" stroke-linejoin="round"/>';
+  }
+  return '<svg class="fish '+(cls||'')+'" viewBox="0 0 140 92" role="img" aria-label="Finn the fish">'+
+    '<path d="M26 46 L4 22 Q12 46 4 70 Z" fill="#FF5A4E" stroke="'+INK+'" stroke-width="3.5" stroke-linejoin="round"/>'+
+    '<path d="M56 18 Q74 -2 94 20 Z" fill="#FF5A4E" stroke="'+INK+'" stroke-width="3.5" stroke-linejoin="round"/>'+
+    '<path d="M60 74 Q72 90 88 74 Z" fill="#FF5A4E" stroke="'+INK+'" stroke-width="3.5" stroke-linejoin="round"/>'+
+    '<ellipse cx="70" cy="46" rx="48" ry="31" fill="#FFC933" stroke="'+INK+'" stroke-width="3.5"/>'+
+    '<path d="M80 28 Q73 46 80 64" fill="none" stroke="'+INK+'" stroke-width="3" stroke-linecap="round"/>'+
+    '<path d="M44 38 q5 5 10 0 M40 50 q5 5 10 0 M52 58 q5 5 10 0" fill="none" stroke="'+INK+'" stroke-opacity=".35" stroke-width="2.5" stroke-linecap="round"/>'+
+    '<ellipse cx="99" cy="59" rx="6" ry="3.6" fill="#FF9EC4"/>'+
+    eye + mouths[mood] + extra + '</svg>';
+}
+
+/* ---------- scenarios ---------- */
+/* Each scenario: tier 0/1/2, legit true/false, ch (channel), ui (what the window shows),
+   parts (tappable clues; clue:true are the informative ones; k = BAIT letter),
+   opts (v: best/good/meh/bad; rep: includes reporting; del: just deletes), why, tip. */
+var TIERS = ['The shallows','Open water','Deep sea'];
+
+var REPORT_TIP = 'Report it. One report protects everyone who got the same message.';
+
+var S = [
+
+/* ===== THE SHALLOWS ===== */
+{ id:'giftcards', tier:0, legit:false, ch:'chat', title:'A favor from the boss',
+  setup:'Tuesday, 9:12. Your phone buzzes while you’re making coffee.',
+  ui:{ app:'Messages', who:{n:'+1 (415) 555-0142', sub:'Not in your contacts', p:'num'},
+    msgs:[
+      {t:'Hi, it’s Jordan 👋 This is my new number, please save it.', p:'hello'},
+      {t:'Are you at your desk? I’m stuck in a client meeting and can’t talk.', p:'stuck'},
+      {t:'Can you buy 5 Apple gift cards, $100 each, as a client gift? I’ll pay you back today. Please keep this between us 🙏', p:'cards'},
+      {t:'Send me photos of the codes as soon as you have them.', p:'codes'} ] },
+  parts:{
+    num:{n:'Unknown number', clue:true, k:'B', why:'Your real manager’s number is already in your phone. “This is my new number” from a stranger is the classic opening line.'},
+    hello:{n:'The name “Jordan”', clue:false, why:'Anyone can type a name, so a familiar name proves nothing.'},
+    stuck:{n:'“Can’t talk”', clue:true, k:'I', why:'It gives you a reason you can’t call to double-check, and it adds time pressure.'},
+    cards:{n:'Gift cards and secrecy', clue:true, k:'A', why:'Gift cards are as good as cash and impossible to trace. A real manager doesn’t ask staff to buy them by text, and “keep this between us” stops anyone from spotting the scam.'},
+    codes:{n:'Photos of the codes', clue:true, k:'A', why:'The codes are the money. Once they’re sent, the funds are gone within minutes.'} },
+  opts:[
+    {id:'report', ic:'🚨', t:'Report it', v:'best', rep:true, fb:'Exactly. Real managers don’t ask for gift cards by text, and your report warns teammates who may get the same message.'},
+    {id:'call', ic:'📞', t:'Call Jordan on the number you already have', v:'good', fb:'Smart: checking through a channel you already trust beats replying. Now report it too so others are warned.'},
+    {id:'buy', ic:'🎁', t:'Buy the gift cards', v:'bad', fb:'That’s the hook. Gift card codes work like cash and can’t be recovered.'},
+    {id:'reply', ic:'💬', t:'Reply “Sure, which store?”', v:'bad', fb:'Replying tells the scammer your number is live and that you’ll play along. Don’t engage.'} ],
+  why:'A new number, a manager who can’t talk, a gift card request and a demand for secrecy: the textbook “boss scam”.',
+  tip:'Some requests are always red flags: gift cards, wire transfers and one-time codes.' },
+
+{ id:'mailbox', tier:0, legit:false, ch:'email', title:'Your mailbox is full',
+  setup:'Wednesday, 8:40. The first email of the day lands before your coffee cools.',
+  ui:{ from:{n:'IT Helpdesk', a:'helpdesk@taxdome-mail.support', p:'sender'}, to:'you@taxdome.com',
+    subj:'Action required: your mailbox is 99% full',
+    body:[ {t:'Dear User,', p:'greet'},
+           {t:'Your mailbox has reached its storage limit. If you don’t verify your account within 24 hours, you will stop receiving new email.', p:'urgent'} ],
+    btn:{t:'Increase storage now', url:'https://mailbox-verify.xyz/taxdome/login', p:'link'},
+    sig:{t:'TaxDome IT Team', p:'sig'} },
+  parts:{
+    sender:{n:'Sender address', clue:true, k:'B', why:'Our email ends in @taxdome.com. This one ends in taxdome-mail.support, which anyone can register.'},
+    greet:{n:'“Dear User”', clue:true, k:'B', why:'Real IT knows your name. A generic greeting points to a mass mailing.'},
+    urgent:{n:'The 24-hour deadline', clue:true, k:'I', why:'Deadlines and “you will lose access” are there to make you act before you think.'},
+    link:{n:'Where the button goes', clue:true, k:'T', why:'The button leads to mailbox-verify.xyz, not to anything we use. Check where a link goes before you click.'},
+    sig:{n:'“TaxDome IT Team” signature', clue:false, why:'Names and logos are easy to copy, so a signature proves nothing.'} },
+  opts:[
+    {id:'report', ic:'🚨', t:'Report it', v:'best', rep:true, fb:'Perfect. One report protects everyone who received the same email.'},
+    {id:'delete', ic:'🗑️', t:'Just delete it', v:'meh', del:true, fb:'You’re safe, but the team isn’t: the same email is still sitting in other inboxes. Deleting protects only you.'},
+    {id:'click', ic:'🔗', t:'Click “Increase storage now”', v:'bad', fb:'That’s the hook. The page would be a fake login that steals your password.'},
+    {id:'fwd', ic:'📢', t:'Forward it to #general to warn everyone', v:'meh', fb:'Good instinct, wrong route. Forwarding spreads the link further. Report it so Security can handle it safely.'} ],
+  why:'Wrong domain, a generic greeting, a deadline and a button to a mystery website: four tells in one email.',
+  tip:'Check the part of the address after the @. That’s who really sent it.' },
+
+{ id:'usb', tier:0, legit:false, ch:'usb', title:'The mystery USB stick',
+  setup:'Thursday, at your coworking space. Someone left something on the table.',
+  ui:{ stick:'USB', label:{t:'Q4 SALARIES', t2:'CONFIDENTIAL', p:'label'}, where:{t:'Found on a shared table at your coworking space.', p:'where'} },
+  parts:{
+    label:{n:'The tempting label', clue:true, k:'A', why:'Attackers print labels you can’t resist, like salaries or bonuses. Curiosity is the bait.'},
+    where:{n:'Where it was left', clue:true, k:'B', why:'A drive with no owner, left where staff will find it, is a known trick. Nobody legitimate delivers files this way.'},
+    stick:{n:'The USB plug', clue:true, k:'T', why:'A USB stick can pretend to be a keyboard and type commands the second it’s plugged in. Never test an unknown one on your laptop.'} },
+  opts:[
+    {id:'report', ic:'🚨', t:'Report it and hand it to Security', v:'best', rep:true, fb:'Yes. Security can examine it safely, and you’ve taken the bait away from the next curious person.'},
+    {id:'plug', ic:'💻', t:'Plug it into your work laptop to find the owner', v:'bad', fb:'That’s the hook. Plugging it in is all it takes for malware to run.'},
+    {id:'home', ic:'🏠', t:'Plug it into your personal laptop instead', v:'bad', fb:'Still the hook. Your personal laptop probably holds work logins too, with no company protection.'},
+    {id:'leave', ic:'🤷', t:'Leave it where it is', v:'meh', fb:'You didn’t get hurt, but the next curious person might. Hand it to someone who can deal with it.'} ],
+  why:'Unknown USB drives with irresistible labels are bait. The labels are chosen to make you curious.',
+  tip:'If you didn’t buy it and don’t know who owns it, don’t plug it in.' },
+
+{ id:'priya', tier:0, legit:true, ch:'calendar', title:'A normal Thursday sync',
+  setup:'Monday, 10:05. A calendar invite pops up.',
+  ui:{ day:'Thu', date:'19', title:'Onboarding checklist sync', when:'11:00 to 11:30',
+    org:{n:'Priya Nair', a:'priya.nair@taxdome.com', p:'org'},
+    where:{t:'Google Meet: meet.google.com/abc-defg-hij', url:'https://meet.google.com/abc-defg-hij', p:'meet'},
+    guests:{t:'You, Jordan Lee and Sam Ortiz (3 guests, all @taxdome.com)', p:'guests'},
+    desc:[ {t:'Agenda: 1) walk through the new-hire checklist 2) pick an owner for each step.', p:'agenda'},
+           {t:'As we discussed in Slack yesterday. The doc is linked in our thread.', p:'ctx'} ] },
+  parts:{
+    org:{n:'Organizer', clue:true, k:'B', why:'It’s Priya’s real @taxdome.com address, a teammate you talk to every day.'},
+    meet:{n:'Meeting link', clue:true, k:'T', why:'The link goes to meet.google.com, the genuine Google Meet address. No odd redirects.'},
+    ctx:{n:'Expected follow-up', clue:true, k:'A', why:'You discussed this sync in Slack yesterday, so nothing unusual is being asked of you.'},
+    guests:{n:'Guest list', clue:true, k:'I', why:'Everyone invited is a teammate on the same domain, and there’s no pressure or deadline anywhere.'},
+    agenda:{n:'The agenda', clue:false, why:'A neat agenda is nice, but scammers can write one too. The checks above are what count.'} },
+  opts:[
+    {id:'accept', ic:'👍', t:'Accept the invite', v:'best', fb:'Right call. Sender, context and link all check out. Not everything is a trap.'},
+    {id:'report', ic:'🚨', t:'Report it, just in case', v:'good', rep:true, fb:'No harm done, and “when in doubt, report” is a good habit. This one checks out, though, so you can accept.'},
+    {id:'delete', ic:'🗑️', t:'Delete it', v:'meh', del:true, fb:'Safe, but you’d miss a real meeting. Checking first beats deleting by reflex.'} ],
+  why:'Known sender, expected topic, genuine meeting link and no pressure. Everything lines up, which is what a safe message looks like.',
+  tip:'Run the BAIT check. If every letter adds up, carry on with your day.' },
+
+/* ===== OPEN WATER ===== */
+{ id:'compreview', tier:1, legit:false, ch:'calendar', title:'The compensation review',
+  setup:'Friday, 16:20. An invite lands for a meeting you’ve never heard of.',
+  ui:{ day:'Mon', date:'23', title:{t:'2027 Compensation Review', p:'topic'}, when:'10:00 to 10:30',
+    org:{n:'HR Compensation Team', a:'comp-review@taxdome-hr.co', p:'org'},
+    where:{t:'Online. Link is inside the attachment.'},
+    guests:{t:'You and 1 more'},
+    desc:[ {t:'Please open the attached file to review your updated package before the meeting.', p:'ask'} ],
+    attach:{t:'Comp_Review_2027.html', p:'att'} },
+  parts:{
+    topic:{n:'The topic', clue:true, k:'A', why:'Pay is something everyone wants to open. Attackers pick topics you can’t ignore.'},
+    org:{n:'Organizer', clue:true, k:'B', why:'taxdome-hr.co isn’t our domain, and nobody told you about a review. Real HR uses @taxdome.com.'},
+    att:{n:'The .html attachment', clue:true, k:'T', why:'HR documents come through HR systems, not as .html files. An .html attachment can open a fake login page in your browser.'},
+    ask:{n:'“Open the attached file”', clue:true, k:'I', why:'An invite that pushes you to open a file before the meeting is rushing you into a click.'} },
+  opts:[
+    {id:'report', ic:'🚨', t:'Report it', v:'best', rep:true, fb:'Spot on. Don’t accept, don’t decline, don’t open anything. Just report.'},
+    {id:'delete', ic:'🗑️', t:'Delete the invite', v:'meh', del:true, fb:'Safer than clicking, but nobody else is warned, and the invite may already be on your calendar.'},
+    {id:'open', ic:'📎', t:'Open the attachment', v:'bad', fb:'That’s the hook. The file would show a fake sign-in page built to steal your password.'},
+    {id:'decline', ic:'🙅', t:'Decline the invite', v:'bad', fb:'Declining sends a reply, which tells the sender your address is live and watched. Accepting does the same. Don’t answer at all.'} ],
+  why:'An unknown organizer, a juicy topic and a file you’re told to open. Any reply, even “no”, confirms your mailbox is real.',
+  tip:'Calendar invites can be phishing too. Don’t accept, don’t decline, don’t open attachments: just report.' },
+
+{ id:'clientbank', tier:1, legit:false, ch:'email', title:'New bank details',
+  setup:'Monday, 14:05. A client you’re onboarding writes to you again.',
+  ui:{ from:{n:'Dana Hale', a:'dana@halecpa-billing.com', p:'sender'}, to:'you@taxdome.com',
+    subj:'Re: Duplicate charge, please use our new bank details',
+    body:[ {t:'Hi, and thanks for catching the duplicate charge.', p:'thanks'},
+           {t:'We’ve just switched banks. Please send the refund to the new account below instead of the old one: First Harbor Bank, account 0099 1274 5538.', p:'bank'},
+           {t:'I’m traveling this week, so email is best. Please confirm as soon as it’s done.', p:'travel'} ],
+    sig:{t:'Dana Hale, Hale & Co. CPA', p:'sig'} },
+  parts:{
+    sender:{n:'Sender address', clue:true, k:'B', why:'Dana normally writes from halecpa.com. This is halecpa-billing.com, a lookalike that anyone can register.'},
+    bank:{n:'Change of bank details', clue:true, k:'A', why:'Changing where money goes, by email, is the number one move in payment fraud. Always verify it another way.'},
+    travel:{n:'“Email is best”', clue:true, k:'I', why:'It steers you away from a phone call, the one thing that would expose the fraud. “Confirm as soon as it’s done” adds speed pressure.'},
+    thanks:{n:'The friendly opening', clue:false, why:'Scammers copy details from real threads to sound credible. A friendly tone proves nothing.'},
+    sig:{n:'Signature', clue:false, why:'A signature is just text. Anyone can paste one.'} },
+  opts:[
+    {id:'refund', ic:'💸', t:'Send the refund to the new account', v:'bad', fb:'That’s the hook. The money would go to a fraudster and is very hard to recover.'},
+    {id:'confirm', ic:'✉️', t:'Reply asking Dana to confirm by email', v:'bad', fb:'You’d be asking the scammer to vouch for themselves. Verify through a different channel.'},
+    {id:'call', ic:'📞', t:'Call Dana on the number saved in your records', v:'good', fb:'The right check: a number you already trust, not one from the email. Report the email too so Security can block the domain.'},
+    {id:'report', ic:'🚨', t:'Report it', v:'best', rep:true, fb:'Great catch. Report it, and verify through a channel you already trust.'} ],
+  why:'A lookalike domain, a change of bank details and “don’t call me”. Payment fraud almost always follows this script.',
+  tip:'Any change to bank or payment details gets a phone call to a number you already had.' },
+
+{ id:'lookalike', tier:1, legit:false, ch:'email', title:'New documents from your client',
+  setup:'Wednesday, 11:30. A portal notification arrives, and it looks very familiar.',
+  ui:{ from:{n:'TaxDome', a:'no-reply@taxdome.com-notify.net', p:'sender'}, to:'you@taxdome.com',
+    subj:'Hale & Co. uploaded 3 documents for your review',
+    body:[ {t:'Hi,'}, {t:'Dana Hale uploaded 3 documents to your client portal.'},
+           {t:'Sign in to view them. For your security you’ll be asked to enter your password again.', p:'signin'} ],
+    btn:{t:'View documents', url:'https://login-taxdome.secure-docs.net/auth?next=/docs', p:'link'},
+    sig:{t:'© TaxDome. All rights reserved.', p:'logo'} },
+  parts:{
+    sender:{n:'Sender address', clue:true, k:'B', why:'An address is read from the right. This one ends in com-notify.net. The “taxdome.com” in front is a disguise.'},
+    signin:{n:'“Enter your password again”', clue:true, k:'A', why:'A notification points you to the app. It doesn’t ask you to type your password after a click.'},
+    link:{n:'Where the button goes', clue:true, k:'T', why:'The link goes to secure-docs.net, not to TaxDome. Tap it in the game to see the real destination.'},
+    logo:{n:'Logo and footer', clue:false, why:'Copying a logo takes seconds. Look at the address and the link instead.'} },
+  opts:[
+    {id:'click', ic:'🔗', t:'Click “View documents”', v:'bad', fb:'That’s the hook. The page would be a pixel-perfect fake sign-in that captures your password.'},
+    {id:'bookmark', ic:'🔖', t:'Open TaxDome from your bookmark and check there', v:'good', fb:'Great habit: go to the app yourself instead of through the email. If nothing’s there, you’ve proven it fake. Report it too.'},
+    {id:'delete', ic:'🗑️', t:'Just delete it', v:'meh', del:true, fb:'You’re safe, but the same email may be in colleagues’ inboxes. Report it so Security can block it.'},
+    {id:'report', ic:'🚨', t:'Report it', v:'best', rep:true, fb:'Yes! Lookalikes of our own products are exactly what Security wants to see.'} ],
+  why:'The design is perfect, the address and link are not. Attackers copy brands, so only the address and the link tell the truth.',
+  tip:'When an email says “sign in to view”, open the app yourself instead.' },
+
+{ id:'oauth', tier:1, legit:false, ch:'consent', title:'A free AI note-taker',
+  setup:'Thursday, 13:10. You’re scrolling LinkedIn between calls when an ad catches your eye.',
+  ui:{ ctx:{t:'You clicked an ad: “Free AI that writes your meeting notes in 10 seconds.”', p:'ctx'},
+    app:{n:'MeetNotes AI Summarizer', sub:'Publisher not verified', p:'app'}, acct:'you@taxdome.com',
+    perms:[ {t:'Read, write, send and permanently delete all your email', p:'mail'},
+            {t:'See, edit, create and delete all your files in Drive', p:'drive'},
+            {t:'See your calendar events', p:'cal'} ] },
+  parts:{
+    ctx:{n:'How you got here', clue:true, k:'B', why:'It came from an ad, not from a tool the company has approved. Check with IT or Security before connecting any new AI tool to your work account.'},
+    app:{n:'Unverified publisher', clue:true, k:'B', why:'You’ve never heard of it and Google can’t verify who is behind it.'},
+    mail:{n:'The email permission', clue:true, k:'A', why:'A note-taker doesn’t need to delete your email. The permissions go far beyond the job.'},
+    drive:{n:'The Drive permission', clue:true, k:'A', why:'Access to all your Drive files means client data and company documents could be copied out.'},
+    cal:{n:'The calendar permission', clue:false, why:'A note-taker does need to see your meetings, so this one is reasonable. It’s the other two that are the problem.'} },
+  opts:[
+    {id:'allow', ic:'✅', t:'Click Allow', v:'bad', fb:'That’s the hook. Once you click Allow, the app can read and send email as you, with no password needed.'},
+    {id:'cancel', ic:'✖️', t:'Click Cancel and move on', v:'meh', fb:'Safe for you. But if the ad reached you, it’s reaching others. Reporting helps Security block the app.'},
+    {id:'ask', ic:'💬', t:'Ask a colleague if they’ve used it', v:'meh', fb:'A friendly check, but a colleague can’t verify it. Security can.'},
+    {id:'report', ic:'🚨', t:'Cancel and report it', v:'best', rep:true, fb:'Perfect. Apps like this can be blocked company-wide, but only if someone reports them.'} ],
+  why:'This kind of phishing needs no password: you grant the access yourself. Permissions that go far beyond the job are the giveaway.',
+  tip:'Before you click Allow, read the permissions. If they’re broader than the task, don’t.' },
+
+{ id:'qr', tier:1, legit:false, ch:'qr', title:'Scan to keep your access',
+  setup:'Tuesday, 15:45. A security-looking email arrives with a QR code in it.',
+  ui:{ from:{n:'IT Security', a:'security-alerts@taxdome-sso.com', p:'sender'}, to:'you@taxdome.com',
+    subj:'Your two-factor authentication is expiring',
+    body:[ {t:'Your two-factor authentication expires today.', p:'urgent'},
+           {t:'To keep your account active, scan the QR code below with your phone. Don’t use your laptop: the code only works on mobile.', p:'phone'} ],
+    qrp:'qr' },
+  parts:{
+    sender:{n:'Sender address', clue:true, k:'B', why:'taxdome-sso.com isn’t our domain. Real security notices come from @taxdome.com.'},
+    urgent:{n:'“Expires today”', clue:true, k:'I', why:'A same-day deadline is there to rush you.'},
+    phone:{n:'“Only works on mobile”', clue:true, k:'A', why:'It’s a trick to move you from your protected laptop to your personal phone, where company security tools can’t see.'},
+    qr:{n:'The QR code', clue:true, k:'T', why:'You can’t hover over a QR code to check where it goes, and email filters can’t read it either. That’s why attackers love them.'} },
+  opts:[
+    {id:'scan', ic:'📱', t:'Scan it with your phone', v:'bad', fb:'That’s the hook. The code opens a fake sign-in page on your phone, away from company protection.'},
+    {id:'fwd', ic:'↪️', t:'Forward it to a colleague to check', v:'meh', fb:'Now two people have the bait. Report it instead so Security can check it safely.'},
+    {id:'delete', ic:'🗑️', t:'Just delete it', v:'meh', del:true, fb:'You’re safe, but nobody else is warned. Report it so the whole team is protected.'},
+    {id:'report', ic:'🚨', t:'Report it', v:'best', rep:true, fb:'Great catch. QR phishing slips past email filters, so people like you are the defense.'} ],
+  why:'A wrong domain, a same-day deadline and a QR code that hides the destination and pulls you onto your phone.',
+  tip:'Treat QR codes like links: if you can’t check where one goes, don’t scan it.' },
+
+{ id:'doccomment', tier:1, legit:true, ch:'email', title:'A comment on your doc',
+  setup:'Wednesday, 15:05. A notification pings while you’re editing a shared plan.',
+  ui:{ from:{n:'Priya Nair (via Google Docs)', a:'comments-noreply@docs.google.com', p:'sender'}, to:'you@taxdome.com',
+    subj:'Priya Nair commented on “Q4 onboarding plan”',
+    body:[ {t:'Priya Nair commented on a document you’re editing:', p:'ctx'},
+           {t:'“Should we move step 3 before the kickoff call? Tagging you ✋”', p:'comment'} ],
+    btn:{t:'Open', url:'https://docs.google.com/document/d/1xKq8Lp3T/edit?disco=AAAB', p:'link'} },
+  parts:{
+    sender:{n:'Sender address', clue:true, k:'B', why:'docs.google.com is Google’s own domain, and “via Google Docs” is how real comment notifications look.'},
+    ctx:{n:'You’re working in this doc', clue:true, k:'A', why:'You and Priya are working in this document right now, so a comment is expected.'},
+    comment:{n:'The comment itself', clue:true, k:'I', why:'It’s a normal work question: no deadline, no threat, no password request.'},
+    link:{n:'Where “Open” goes', clue:true, k:'T', why:'The link goes to docs.google.com, matching the sender.'} },
+  opts:[
+    {id:'open', ic:'📄', t:'Open the doc and reply', v:'best', fb:'Right call. Sender, context and link all check out, and a quick reply keeps the work moving.'},
+    {id:'report', ic:'🚨', t:'Report it, just in case', v:'good', rep:true, fb:'No harm done, and “when in doubt, report” is a good habit. This one passes every check, so you can open it.'},
+    {id:'delete', ic:'🗑️', t:'Delete it', v:'meh', del:true, fb:'Safe, but Priya is waiting for your answer. Checking first beats deleting by reflex.'} ],
+  why:'The sender domain is Google’s own, you’re really working in that doc, and the link matches. Nothing is out of place.',
+  tip:'Not every link is a trap. Real notifications match the place where you’re already working.' },
+
+/* ===== DEEP SEA ===== */
+{ id:'hijack', tier:2, legit:false, ch:'email', title:'Same thread, new bank',
+  setup:'Friday, 16:50. A vendor you pay every month replies in your usual thread.',
+  ui:{ from:{n:'Marcus Webb', a:'marcus.webb@brightIine-legal.com', p:'sender'}, to:'you@taxdome.com',
+    subj:'Re: Invoice #2291, March retainer',
+    body:[ {t:'Hi, following up on invoice #2291, due this Friday.', p:'due'},
+           {t:'Our bank has changed. Please pay to the new account: 0071 5540 2218. The old one is closed and a payment to it will bounce.', p:'bank'},
+           {t:'Thanks, Marcus'} ],
+    quote:{t:'On Mon, Marcus Webb wrote: Hi, attached is invoice #2291 for the March retainer. Payment terms are 30 days…', p:'thread'} },
+  parts:{
+    sender:{n:'Sender address', clue:true, k:'B', why:'Look closely: it says “brightIine” with a capital I, not “brightline” with a lowercase L. In many fonts they look identical.'},
+    bank:{n:'New bank account', clue:true, k:'A', why:'The same lesson as before: a bank change by email gets verified by phone, whatever the thread looks like.'},
+    thread:{n:'The familiar thread', clue:true, k:'B', why:'Attackers copy real conversations, or break into a real mailbox, so a thread you recognise isn’t proof that the next message is real.'},
+    due:{n:'“Due this Friday”', clue:true, k:'I', why:'A deadline on a payment change nudges you to skip the verification step.'} },
+  opts:[
+    {id:'pay', ic:'💸', t:'Pay to the new account', v:'bad', fb:'That’s the hook. The payment would go to a fraudster and is very hard to get back.'},
+    {id:'confirm', ic:'✉️', t:'Reply asking him to confirm by email', v:'bad', fb:'If the account is impersonated, you’d be asking the impostor to confirm themselves. Use a different channel.'},
+    {id:'call', ic:'📞', t:'Call Marcus on the number from your contract', v:'good', fb:'The right check. A number you already had can’t be faked by the email. Report the email too.'},
+    {id:'report', ic:'🚨', t:'Report it', v:'best', rep:true, fb:'Excellent catch, a very sneaky one. Report it, then verify by phone before paying anything.'} ],
+  why:'Attackers get into a real thread, or copy one, then slip in new bank details. The sender address is one letter off.',
+  tip:'Familiar thread, new payment details: still call the number from your contract.' },
+
+{ id:'mfa', tier:2, legit:false, ch:'push', title:'The 2 AM notification',
+  setup:'Wednesday, 2:14 AM. Your phone lights up a dark room. Again.',
+  ui:{ time:'2:14', date:'Wednesday', app:'Google Workspace',
+    title:{t:'Did you just try to sign in?', p:'title'},
+    lines:[ {t:'Sign-in attempt from Lagos, Nigeria on a Windows computer.', p:'where'},
+            {t:'This is the 4th request in 10 minutes.', p:'count'} ] },
+  parts:{
+    time:{n:'The time of night', clue:true, k:'I', why:'Attackers send these at night, hoping a sleepy person taps “yes” just to make it stop.'},
+    where:{n:'The location', clue:true, k:'B', why:'You’re not in Lagos, and you didn’t start a sign-in. Someone else is typing your password.'},
+    count:{n:'Four requests in ten minutes', clue:true, k:'I', why:'This is “prompt bombing”: they keep pushing until you give in.'},
+    title:{n:'The prompt itself', clue:false, why:'The prompt is genuine. It’s the person signing in who isn’t you. If you didn’t start it, the answer is always no.'} },
+  opts:[
+    {id:'yes', ic:'✅', t:'Tap “Yes, it’s me” to stop the buzzing', v:'bad', fb:'That’s the hook. You’d be letting the attacker in with your own approval.'},
+    {id:'ignore', ic:'😴', t:'Ignore it and go back to sleep', v:'meh', fb:'It won’t stop on its own, and someone already knows your password. Deny it and act.'},
+    {id:'deny', ic:'🙅', t:'Tap “No, it’s not me”', v:'good', fb:'The right answer for the prompt. But someone has your password, so tell Security and change it.'},
+    {id:'report', ic:'🚨', t:'Tap “No, it’s not me” and report it', v:'best', rep:true, fb:'Perfect. Denying stops this attempt, and reporting lets Security reset your password and watch for the next one.'} ],
+  why:'Repeated sign-in prompts at night, from a place you’ve never been. Your password is already in someone’s hands.',
+  tip:'If you didn’t start a sign-in, never approve it. Deny it, report it and change your password.' },
+
+{ id:'vishing', tier:2, legit:false, ch:'call', title:'IT is calling',
+  setup:'Monday, 11:20. An unknown number rings while you’re working on your laptop.',
+  ui:{ who:{n:'Unknown caller', sub:'+44 20 5550 0188', p:'caller'},
+    lines:[ {t:'“Hi, this is Mark from IT Security. We’ve detected malware on your laptop.”', p:'scare'},
+            {t:'“I’ve just sent a 6-digit code to your phone. Please read it out so I can start the cleanup.”', p:'code'},
+            {t:'“It’s urgent. I can only stay on the line for two minutes.”', p:'rush'} ] },
+  parts:{
+    caller:{n:'The unknown number', clue:true, k:'B', why:'IT contacts you through company channels you know, not from an unknown number. You can check the internal directory.'},
+    scare:{n:'The malware warning', clue:true, k:'I', why:'Fear is the lever. “Your laptop is infected” makes people skip thinking.'},
+    code:{n:'Asking for the code', clue:true, k:'A', why:'Nobody legitimate ever needs your one-time code. It’s the last key to your account, and the caller is signing in as you right now.'},
+    rush:{n:'“Only two minutes”', clue:true, k:'I', why:'A ticking clock stops you from hanging up and checking.'} },
+  opts:[
+    {id:'read', ic:'🔢', t:'Read the code out', v:'bad', fb:'That’s the hook. The caller is signing in as you right now, and your code is the final step.'},
+    {id:'id', ic:'🪪', t:'Ask for his employee ID before deciding', v:'meh', fb:'Scammers arrive with fake IDs ready. Staying on the line is the risk.'},
+    {id:'hang', ic:'📵', t:'Hang up', v:'good', fb:'Right move. Now tell Security so they can warn others and check your account.'},
+    {id:'report', ic:'🚨', t:'Hang up and report it', v:'best', rep:true, fb:'Perfect. Hanging up ends the attack, and your report helps protect the colleagues they’re calling next.'} ],
+  why:'Fear, urgency and a request for your one-time code. A real IT team never asks for it.',
+  tip:'Never read out a one-time code, to anyone, for any reason.' },
+
+{ id:'zoom', tier:2, legit:true, ch:'email', title:'A boring, real email',
+  setup:'Tuesday, 10:50. You’ve just ended a client call when an email arrives.',
+  ui:{ from:{n:'Zoom', a:'no-reply@zoom.us', p:'sender'}, to:'you@taxdome.com',
+    subj:'Cloud recording is now available: Onboarding call with Hale & Co.',
+    body:[ {t:'Hi,'}, {t:'The cloud recording for your meeting is now available.'},
+           {t:'Topic: Onboarding call with Hale & Co.', p:'topic'},
+           {t:'Started today at 10:05. Duration: 42 minutes. The recording stays available until you delete it.', p:'tone'} ],
+    btn:{t:'View recording', url:'https://zoom.us/rec/share/Q7dK2m', p:'link'} },
+  parts:{
+    sender:{n:'Sender address', clue:true, k:'B', why:'no-reply@zoom.us is Zoom’s real domain, not a lookalike such as zoom-us.co.'},
+    topic:{n:'The meeting topic', clue:true, k:'A', why:'It’s the call you ended minutes ago, so nothing here is a surprise.'},
+    tone:{n:'No pressure at all', clue:true, k:'I', why:'No deadline, no threat, no request to sign in. Real notifications don’t rush you.'},
+    link:{n:'Where “View recording” goes', clue:true, k:'T', why:'The link goes to zoom.us, the same domain as the sender.'} },
+  opts:[
+    {id:'open', ic:'🎬', t:'Open the recording', v:'best', fb:'Right call. Official domain, an event you just had, a matching link and no pressure. Nothing to fear here.'},
+    {id:'report', ic:'🚨', t:'Report it, just in case', v:'good', rep:true, fb:'No harm done, and when in doubt, reporting is right. This one passes all four BAIT checks, though, so you could have opened it.'},
+    {id:'delete', ic:'🗑️', t:'Delete it', v:'meh', del:true, fb:'Safe, but you’d lose a recording you need. Checking first beats deleting by reflex.'} ],
+  why:'Automated doesn’t mean dangerous. This email checks out on sender, context, pressure and link.',
+  tip:'Run the BAIT check. If it all adds up, carry on. If one letter fails, report it.' }
+];
+
+/* ---------- BAIT letters ---------- */
+var BAIT = {
+  B:{t:'Believable sender?', d:'Check the address after the @. Lookalike domains are everywhere.'},
+  A:{t:'Asking for something unusual?', d:'Money, gift cards, passwords, codes or files you didn’t expect.'},
+  I:{t:'In a rush?', d:'Deadlines, threats and secrecy are pressure tactics.'},
+  T:{t:'Test before you trust', d:'Hover over links. Don’t click, scan or plug in what you can’t check.'}
+};
+var CH_TITLE = {email:'Inbox', chat:'Messages', calendar:'Calendar', consent:'Account access', push:'Lock screen', call:'Phone', usb:'Coworking space', qr:'Inbox'};
+
+/* ---------- state ---------- */
+var st = { phase:'intro', run:[], i:0, score:0, streak:0, bestStreak:0, hooks:0, log:[], inspected:{}, answered:false, opts:[] };
+var app = $('#app');
+var cur = function(){ return st.run[st.i]; };
+
+function pickRun(){
+  var t0 = shuffle(S.filter(function(s){return s.tier===0;})).slice(0,3);
+  function tierMix(t, nPhish){
+    var pool = S.filter(function(s){return s.tier===t;});
+    var legit = shuffle(pool.filter(function(s){return s.legit;})).slice(0,1);
+    var phish = shuffle(pool.filter(function(s){return !s.legit;})).slice(0,nPhish);
+    return shuffle(legit.concat(phish));
+  }
+  return t0.concat(tierMix(1,3), tierMix(2,2));
+}
+function startRun(){
+  st.run = pickRun(); st.i = 0; st.score = 0; st.streak = 0; st.bestStreak = 0; st.hooks = 0; st.log = [];
+  st.phase = 'play'; beginScenario(); render(); window.scrollTo(0,0);
+}
+function beginScenario(){ st.inspected = {}; st.answered = false; st.opts = shuffle(cur().opts); }
+
+/* ---------- window renderers ---------- */
+function makeT(sc){
+  return function(id, inner, url, extra){
+    if(!id || !sc.parts[id]) return inner;
+    var p = sc.parts[id], cls = 'tap'+(extra?' '+extra:''), on = !!st.inspected[id];
+    if(st.answered){
+      if(p.clue) cls += on ? ' found' : ' missed'; else cls += on ? ' neutral' : '';
+      cls += ' locked';
+    } else if(on) cls += ' on';
+    return '<span class="'+cls+'" role="button" tabindex="'+(st.answered?'-1':'0')+'" data-act="tap" data-part="'+id+'"'+(url?' data-url="'+esc(url)+'"':'')+
+           ' aria-pressed="'+on+'"'+(st.answered?' aria-disabled="true"':'')+'>'+inner+'</span>';
+  };
+}
+function statusBar(){ return '<div class="status" id="status">Tip: hover over (or tap) a link to see where it really goes.</div>'; }
+
+function mailHTML(sc, u, T){
+  var h = '<div class="mail">';
+  h += '<div class="row"><span class="lbl">From</span><span>'+T(u.from.p, '<b>'+esc(u.from.n)+'</b> <span class="addr">&lt;'+esc(u.from.a)+'&gt;</span>')+'</span></div>';
+  h += '<div class="row"><span class="lbl">To</span><span>'+esc(u.to)+'</span></div>';
+  h += '<div class="subj">'+esc(u.subj)+'</div><hr>';
+  (u.body||[]).forEach(function(b){ h += '<p>'+T(b.p, esc(b.t))+'</p>'; });
+  if(u.btn) h += '<div class="mbtn">'+T(u.btn.p, esc(u.btn.t), u.btn.url)+'</div>';
+  if(u.qrp) h += '<div>'+T(u.qrp, qrHTML(), '', 'blk')+'</div>';
+  if(u.sig) h += '<p>'+T(u.sig.p, esc(u.sig.t))+'</p>';
+  if(u.quote) h += '<div class="quote">'+T(u.quote.p, esc(u.quote.t))+'</div>';
+  return h + '</div>';
+}
+function calHTML(sc, u, T){
+  var title = typeof u.title === 'string' ? esc(u.title) : T(u.title.p, esc(u.title.t));
+  var h = '<div class="mail"><div class="cal-top"><div class="cal-date"><b>'+esc(u.day)+'</b><span>'+esc(u.date)+'</span></div>'+
+          '<div><div class="cal-title">'+title+'</div><div>'+esc(u.when)+'</div></div></div>';
+  h += '<div class="row"><span class="lbl">From</span><span>'+T(u.org.p, '<b>'+esc(u.org.n)+'</b> <span class="addr">&lt;'+esc(u.org.a)+'&gt;</span>')+'</span></div>';
+  h += '<div class="row"><span class="lbl">Where</span><span>'+T(u.where.p, esc(u.where.t), u.where.url)+'</span></div>';
+  h += '<div class="row"><span class="lbl">Guests</span><span>'+T(u.guests.p, esc(u.guests.t))+'</span></div><hr>';
+  (u.desc||[]).forEach(function(b){ h += '<p>'+T(b.p, esc(b.t))+'</p>'; });
+  if(u.attach) h += '<div class="chipfile">📎 '+T(u.attach.p, esc(u.attach.t))+'</div>';
+  h += '<div class="rsvp" aria-hidden="true"><span>Yes</span><span>No</span><span>Maybe</span></div></div>';
+  return h;
+}
+function chatHTML(sc, u, T){
+  var h = '<div class="chat-head"><div class="avatar" aria-hidden="true">?</div><div><b>'+T(u.who.p, esc(u.who.n))+'</b><small>'+esc(u.who.sub)+'</small></div></div>';
+  u.msgs.forEach(function(m){ h += '<div class="bub">'+T(m.p, esc(m.t))+'</div>'; });
+  return h;
+}
+function consentHTML(sc, u, T){
+  var h = '<div class="consent"><div class="ctx">'+T(u.ctx.p, esc(u.ctx.t))+'</div>';
+  h += '<div class="app"><div class="appic" aria-hidden="true">🤖</div><div><h4>'+T(u.app.p, esc(u.app.n))+'</h4><small>'+esc(u.app.sub)+'</small></div></div>';
+  h += '<div class="acct">wants access to '+esc(u.acct)+'. It would be able to:</div><ul>';
+  u.perms.forEach(function(p){ h += '<li><span>'+T(p.p, esc(p.t))+'</span></li>'; });
+  h += '</ul><div class="btns" aria-hidden="true"><span>Cancel</span><span style="background:#1A73E8;color:#fff">Allow</span></div></div>';
+  return h;
+}
+function pushHTML(sc, u, T){
+  var h = '<div class="phone"><div class="time">'+T('time', esc(u.time))+'</div><div class="date">'+esc(u.date)+'</div><div class="notif">';
+  h += '<div class="app">🔐 '+esc(u.app)+'</div><h4>'+T(u.title.p, esc(u.title.t))+'</h4>';
+  u.lines.forEach(function(l){ h += '<p>'+T(l.p, esc(l.t))+'</p>'; });
+  return h + '<div class="btns" aria-hidden="true"><span>Yes, it’s me</span><span>No, it’s not me</span></div></div></div>';
+}
+function callHTML(sc, u, T){
+  var h = '<div class="callscr"><div class="who"><div class="av" aria-hidden="true">?</div><div class="nm">'+T(u.who.p, esc(u.who.n))+'</div><div class="sub">'+esc(u.who.sub)+'</div></div>';
+  u.lines.forEach(function(l){ h += '<div class="say-line">'+T(l.p, esc(l.t))+'</div>'; });
+  return h + '</div>';
+}
+function usbHTML(sc, u, T){
+  return '<div class="usbscene"><div class="usb"><div class="plug">'+T('stick', esc(u.stick))+'</div><div class="shell">'+
+    T(u.label.p, '<span class="sticker">'+esc(u.label.t)+'<br>'+esc(u.label.t2)+'</span>')+'</div></div><div><span class="usbcap">'+T(u.where.p, esc(u.where.t))+'</span></div></div>';
+}
+function qrHTML(){
+  var n=21, seed=7, cells='';
+  function rnd(){ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed/0x7fffffff; }
+  function finder(r,c){
+    var fr = r<7 ? 0 : (r>=n-7 ? n-7 : -1), fc = c<7 ? 0 : (c>=n-7 ? n-7 : -1);
+    if(fr<0 || fc<0 || (fr===n-7 && fc===n-7)) return null;
+    var rr = r-fr, cc = c-fc;
+    if(rr===0||rr===6||cc===0||cc===6) return true;
+    if(rr>=2&&rr<=4&&cc>=2&&cc<=4) return true;
+    return false;
+  }
+  for(var r=0;r<n;r++) for(var c=0;c<n;c++){
+    var f = finder(r,c), dark;
+    if(f!==null) dark = f;
+    else if((r===7||c===7||r===n-8||c===n-8) && ((r<8&&c<8)||(r<8&&c>=n-8)||(r>=n-8&&c<8))) dark = false;
+    else dark = rnd() > 0.5;
+    cells += '<i'+(dark?' class="d"':'')+'></i>';
+  }
+  return '<div class="qr" role="img" aria-label="A QR code">'+cells+'</div>';
+}
+function windowHTML(sc){
+  var T = makeT(sc), u = sc.ui, body;
+  switch(sc.ch){
+    case 'email': case 'qr': body = mailHTML(sc,u,T); break;
+    case 'calendar': body = calHTML(sc,u,T); break;
+    case 'chat': body = chatHTML(sc,u,T); break;
+    case 'consent': body = consentHTML(sc,u,T); break;
+    case 'push': body = pushHTML(sc,u,T); break;
+    case 'call': body = callHTML(sc,u,T); break;
+    case 'usb': body = usbHTML(sc,u,T); break;
+  }
+  var hasLinks = (sc.ch==='email'||sc.ch==='calendar'||sc.ch==='qr');
+  return '<div class="win" data-ch="'+sc.ch+'"><div class="bar"><i></i><i></i><i></i><span>'+CH_TITLE[sc.ch]+'</span></div>'+
+         '<div class="wbody">'+body+'</div>'+(hasLinks?statusBar():'')+'</div>';
+}
+
+/* ---------- screens ---------- */
+function hud(){
+  return '<header class="hud"><div class="brand">'+fish('idle','')+'<span>Don’t take the bait!</span></div>'+
+    '<div class="chips"><span class="chip">Score <b>'+st.score+'</b></span>'+
+    '<span class="chip'+(st.streak>=2?' hot':'')+'">🔥 Streak <b>x'+st.streak+'</b></span>'+
+    '<span class="chip">🎣 Hooks <b>'+st.hooks+'</b></span></div></header>';
+}
+function progress(){
+  var sc = cur(), li = '';
+  for(var k=0;k<st.run.length;k++){
+    var cls = '', label = 'Scenario '+(k+1);
+    if(st.log[k]){ cls = st.log[k].opt.v; label += ': '+({best:'best answer',good:'good answer',meh:'half right',bad:'hooked'})[cls]; }
+    else if(k===st.i && !st.answered){ cls = 'now'; label += ': current'; }
+    else if(k===st.i){ cls=''; }
+    li += '<li class="'+cls+'"><span class="sr">'+label+'</span></li>';
+  }
+  return '<nav class="line" aria-label="Progress"><span class="tier">'+TIERS[sc.tier]+'</span><ol>'+li+'</ol><span class="count">Scenario '+(st.i+1)+' of '+st.run.length+'</span></nav>';
+}
+function introView(){
+  return '<section class="hero">'+
+    '<div class="hero-art"><div class="hookwrap" aria-hidden="true"><div class="hook-line"></div>'+
+    '<svg class="hook-j" viewBox="0 0 70 70" aria-hidden="true"><path d="M35 0 V46 Q35 64 18 60 Q6 57 8 44" fill="none" stroke="#14264A" stroke-width="5" stroke-linecap="round"/><path d="M8 44 l-5 -8 M8 44 l9 -5" stroke="#14264A" stroke-width="5" stroke-linecap="round"/></svg></div>'+
+    '<div class="bait" aria-hidden="true">FREE $500 gift card!</div>'+fish('cool','')+'<div class="say" aria-hidden="true">Nice try.</div></div>'+
+    '<h1>Don’t take the bait!</h1>'+
+    '<p class="lead">Ten phishing scenarios, one job: spot the hook, then report it. You’ll meet Finn, who has been hooked before.</p>'+
+    '<button class="btn big" data-act="start">Start fishing</button>'+
+    '<div class="how">'+
+      '<div class="step"><span class="em">🔎</span><h3>Inspect the message</h3><p>Tap anything that looks suspicious, or reassuring. Every useful clue you find earns bonus points.</p></div>'+
+      '<div class="step"><span class="em">🤔</span><h3>Choose what you’d do</h3><p>Real life has more options than “click” or “don’t click”, and so does this game.</p></div>'+
+      '<div class="step"><span class="em">🏆</span><h3>Learn why, climb the ranks</h3><p>See what gave it away, build a streak and earn your fish rank. Not everything is a phish, so stay sharp.</p></div></div>'+
+    '<div class="bait-card"><h2>Your secret weapon: the BAIT check</h2><ul>'+
+      ['B','A','I','T'].map(function(k){ return '<li><span class="L '+k+'">'+k+'</span><div><b>'+BAIT[k].t+'</b><br>'+BAIT[k].d+'</div></li>'; }).join('')+
+    '</ul><p style="margin-top:12px"><b>Not sure? Report it.</b> Reporting is never the wrong call.</p></div>'+
+    '<p class="fine">Takes about five minutes. Your answers stay in your browser. All people and companies in the scenarios are made up.</p></section>';
+}
+function playView(){
+  var sc = cur();
+  var side = st.answered ? feedbackHTML(sc) : optionsHTML(sc);
+  var stamp = st.answered ? '<div class="stamp '+(sc.legit?'legit':'phish')+'" aria-hidden="true">'+(sc.legit?'LEGIT ✓':'PHISH!')+'</div>' : '';
+  return hud()+progress()+
+    '<section class="setup">'+fish(st.answered ? moodFor() : 'idle','')+'<div class="talk"><small>'+esc(sc.title)+'</small>'+esc(sc.setup)+'</div></section>'+
+    '<div class="stage"><div class="winwrap">'+windowHTML(sc)+stamp+'</div><aside class="side">'+side+'</aside></div>';
+}
+function optionsHTML(sc){
+  var n = Object.keys(st.inspected).length;
+  var h = '<div class="panel"><h2>What would you do?</h2><p class="hint">Inspect the message first: tap anything that stands out. Each useful clue is worth 10 bonus points.</p>'+
+    '<span class="found-count" id="fcount">'+countText(n)+'</span><div class="opts">';
+  st.opts.forEach(function(o,i){ h += '<button class="opt" data-act="opt" data-i="'+i+'"><span class="ic" aria-hidden="true">'+o.ic+'</span><span>'+esc(o.t)+'</span></button>'; });
+  return h + '</div></div>';
+}
+function countText(n){ return '🔎 '+n+(n===1?' clue':' clues')+' inspected'; }
+function moodFor(){
+  var L = st.log[st.i]; if(!L) return 'idle';
+  if(L.opt.v==='best') return st.streak>=3 ? 'cool' : 'happy';
+  if(L.opt.v==='bad') return 'oops';
+  return 'idle';
+}
+function feedbackHTML(sc){
+  var L = st.log[st.i], v = L.opt.v;
+  var title = v==='best' ? (sc.legit ? 'Right call!' : 'Nice catch!') : v==='good' ? 'Good instinct' : v==='meh' ? 'Half the job' : 'You’re hooked!';
+  var sub = L.pts+' points'+(L.bonus?' (streak bonus +'+L.bonus+')':'');
+  var icon = sc.legit ? '✅' : '🚩';
+  var clues = '', neutral = '';
+  Object.keys(sc.parts).forEach(function(id){
+    var p = sc.parts[id], on = L.insp.indexOf(id) >= 0;
+    if(p.clue){
+      clues += '<li class="'+(on?'found':'missed')+'"><span class="L sm '+p.k+'">'+p.k+'</span><div><b>'+icon+' '+esc(p.n)+'</b><em>'+(on?'You spotted it':'You missed it')+'</em><br>'+esc(p.why)+'</div></li>';
+    } else if(on){
+      neutral += '<li><span class="L sm" style="background:#fff">–</span><div><b>'+esc(p.n)+'</b><em>Nothing wrong here</em><br>'+esc(p.why)+'</div></li>';
+    }
+  });
+  var others = st.opts.filter(function(o){ return o!==L.opt; }).map(function(o){
+    return '<li><span class="tag '+o.v+'">'+({best:'Best',good:'Good',meh:'Half',bad:'Hook'})[o.v]+'</span><b>'+esc(o.t)+'</b><br>'+esc(o.fb)+'</li>';
+  }).join('');
+  var last = st.i === st.run.length-1;
+  return '<div class="panel fb '+v+'" id="fbpanel"><div class="fb-head">'+fish(moodFor(),'')+'<div><h2 id="fbtitle" tabindex="-1">'+title+'</h2><div class="pts">'+sub+'</div></div></div>'+
+    '<div class="fb-body">'+
+    '<div><p class="truth">This was '+(sc.legit?'a legit message.':'a phish.')+'</p><p style="margin-top:4px"><span class="tag '+v+'">'+({best:'Best',good:'Good',meh:'Half',bad:'Hook'})[v]+'</span><b>'+esc(L.opt.t)+'</b><br>'+esc(L.opt.fb)+'</p></div>'+
+    '<div><h3>'+(sc.legit ? 'Why it’s safe' : 'What gave it away')+'</h3><p>'+esc(sc.why)+'</p></div>'+
+    '<div><h3>Clues ('+L.found+' of '+L.clueTotal+' found, +'+L.cl+' points)</h3><ul class="clues">'+clues+neutral+'</ul></div>'+
+    '<div class="tip"><b>Remember:</b> '+esc(sc.tip)+'</div>'+
+    '<details class="others"><summary>What the other options would have done</summary><ul>'+others+'</ul></details>'+
+    '<button class="btn" data-act="next">'+(last ? 'See my results' : 'Next scenario')+'</button></div></div>';
+}
+
+function endView(){
+  var log = st.log, n = log.length;
+  var best = log.filter(function(l){return l.opt.v==='best';}).length;
+  var phish = log.filter(function(l){return !l.sc.legit;}), legit = log.filter(function(l){return l.sc.legit;});
+  var reported = phish.filter(function(l){return l.opt.rep;}).length;
+  var legitRight = legit.filter(function(l){return l.opt.v==='best';}).length;
+  var found = 0, total = 0, deletes = log.filter(function(l){return l.opt.del;}).length;
+  var by = {B:[0,0],A:[0,0],I:[0,0],T:[0,0]};
+  log.forEach(function(l){
+    found += l.found; total += l.clueTotal;
+    Object.keys(l.sc.parts).forEach(function(id){
+      var p = l.sc.parts[id]; if(!p.clue) return;
+      by[p.k][1]++; if(l.insp.indexOf(id)>=0) by[p.k][0]++;
+    });
+  });
+  var rank = best===n && st.hooks===0 ? {t:'Security champion', e:'🏆', m:'cool', d:'A perfect run. Finn wants your autograph.'}
+    : best>=8 ? {t:'Bait-proof barracuda', e:'🦈', m:'cool', d:'Very little gets past you. Keep reporting so the whole school is protected.'}
+    : best>=6 ? {t:'Sharp trout', e:'🐠', m:'happy', d:'Solid instincts. A few tricky ones got a nibble, and now you know their tricks.'}
+    : best>=4 ? {t:'Curious minnow', e:'🐟', m:'idle', d:'You’re learning fast. Play again and see how many hooks you can dodge.'}
+    : {t:'Fresh plankton', e:'🦠', m:'oops', d:'Everyone starts somewhere, and the hooks here are harmless. Play again and watch your rank grow.'};
+  var badges = [
+    {e:'🪝', n:'Hook-free', d:'Dodged every hook', ok: st.hooks===0},
+    {e:'🗑️', n:'Never just delete', d:'Never picked “just delete it”', ok: deletes===0},
+    {e:'🔎', n:'Clue hunter', d:'Found 70% or more of the clues', ok: total>0 && found/total>=0.7},
+    {e:'🔥', n:'On fire', d:'A streak of 5 best answers', ok: st.bestStreak>=5},
+    {e:'😎', n:'Not paranoid', d:'Trusted every legit message', ok: legit.length>0 && legitRight===legit.length}
+  ];
+  var recap = log.map(function(l){
+    var ic = ({best:'🎉',good:'👍',meh:'😬',bad:'🎣'})[l.opt.v];
+    return '<li><span class="ri" aria-hidden="true">'+ic+'</span><div><b>'+esc(l.sc.title)+'</b> <small>You chose: '+esc(l.opt.t)+(l.opt.v==='best'?'':'. '+esc(l.sc.tip))+'</small></div></li>';
+  }).join('');
+  st.shareText = '🎣 Don’t take the bait! I reached “'+rank.t+'” '+rank.e+' with '+st.score+' points: '+best+'/'+n+' best calls, '+st.hooks+(st.hooks===1?' hook':' hooks')+', '+found+'/'+total+' clues. Can you beat me?';
+  return '<div class="end">'+hud()+
+    '<div class="end-top">'+fish(rank.m,'')+'<div><h1>That’s a wrap!</h1><div class="rank">'+rank.e+' '+rank.t+'</div><div class="bigscore">'+st.score+' points</div><p>'+rank.d+'</p></div></div>'+
+    '<div class="grid2">'+
+      '<div class="tile"><b>'+best+'/'+n+'</b><span>best answers</span></div>'+
+      '<div class="tile"><b>'+reported+'/'+phish.length+'</b><span>phish reported</span></div>'+
+      '<div class="tile"><b>'+legitRight+'/'+legit.length+'</b><span>legit messages trusted</span></div>'+
+      '<div class="tile"><b>'+found+'/'+total+'</b><span>clues found</span></div>'+
+      '<div class="tile"><b>'+st.hooks+'</b><span>hooks</span></div>'+
+      '<div class="tile"><b>x'+st.bestStreak+'</b><span>best streak</span></div></div>'+
+    '<section class="sect"><h2>Your BAIT check, letter by letter</h2><div class="letters">'+
+      ['B','A','I','T'].map(function(k){ return '<div><span class="L '+k+'">'+k+'</span><span><b>'+by[k][0]+' of '+by[k][1]+'</b> clues found<br>'+BAIT[k].t+'</span></div>'; }).join('')+
+    '</div></section>'+
+    '<section class="sect"><h2>Badges</h2><div class="badges">'+badges.map(function(b){
+      return '<div class="badge'+(b.ok?'':' lock')+'"><span class="bi" aria-hidden="true">'+b.e+'</span><div><b>'+b.n+'</b><small>'+(b.ok?'Earned: ':'Locked: ')+b.d+'</small></div></div>'; }).join('')+'</div></section>'+
+    '<section class="sect"><h2>Your scenarios</h2><ul class="recap">'+recap+'</ul></section>'+
+    '<section class="real"><h2>Now the real thing</h2><p>Spot it. Report it. Every time. Real simulations land in your inbox at random, Monday to Friday. Participation is mandatory for everyone, and every report protects the whole team.</p></section>'+
+    '<div class="actions"><button class="btn big" data-act="again">Play again</button><button class="btn big grape" data-act="share">Copy my result</button></div></div>';
+}
+
+/* ---------- render ---------- */
+function render(){
+  app.innerHTML = st.phase==='intro' ? introView() : st.phase==='play' ? playView() : endView();
+}
+function toast(msg){
+  var t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+}
+function share(){
+  var txt = st.shareText + ' ' + location.href;
+  function done(){ toast('Copied! Paste it in Slack.'); }
+  function fallback(){
+    var ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){ toast('Could not copy. Select and copy manually.'); }
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done, fallback); } else fallback();
+}
+
+/* ---------- actions ---------- */
+function answer(i){
+  if(st.answered) return;
+  var sc = cur(), opt = st.opts[i]; if(!opt) return;
+  var insp = Object.keys(st.inspected);
+  var found = insp.filter(function(id){ return sc.parts[id] && sc.parts[id].clue; }).length;
+  var clueTotal = Object.keys(sc.parts).filter(function(id){ return sc.parts[id].clue; }).length;
+  var base = {best:100, good:60, meh:30, bad:0}[opt.v];
+  if(opt.v==='best'){ st.streak++; st.bestStreak = Math.max(st.bestStreak, st.streak); } else st.streak = 0;
+  if(opt.v==='bad') st.hooks++;
+  var bonus = opt.v==='best' ? Math.min(st.streak-1, 4)*10 : 0;
+  var cl = found*10, pts = base+bonus+cl;
+  st.score += pts;
+  st.log.push({sc:sc, opt:opt, base:base, bonus:bonus, cl:cl, pts:pts, found:found, clueTotal:clueTotal, insp:insp});
+  st.answered = true;
+  render();
+  var h = $('#fbtitle'); if(h){ h.focus({preventScroll:true}); }
+  var p = $('#fbpanel'); if(p && p.scrollIntoView){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(window.innerWidth <= 900) p.scrollIntoView({behavior: reduce?'auto':'smooth', block:'start'});
+  }
+}
+function next(){
+  st.i++;
+  if(st.i >= st.run.length){ st.phase = 'end'; render(); window.scrollTo(0,0); return; }
+  beginScenario(); render(); window.scrollTo(0,0);
+}
+function toggleTap(el){
+  if(st.answered) return;
+  var id = el.getAttribute('data-part'), on = !st.inspected[id];
+  if(on) st.inspected[id] = true; else delete st.inspected[id];
+  el.setAttribute('aria-pressed', on); el.classList.toggle('on', on);
+  var fc = $('#fcount'); if(fc) fc.textContent = countText(Object.keys(st.inspected).length);
+  if(el.getAttribute('data-url')) showUrl(el.getAttribute('data-url'));
+}
+function showUrl(u){ var s = $('#status'); if(s){ s.textContent = '🔗 ' + u; s.classList.add('live'); } }
+
+app.addEventListener('click', function(e){
+  var b = e.target.closest('[data-act]'); if(!b) return;
+  var a = b.getAttribute('data-act');
+  if(a==='start' || a==='again') startRun();
+  else if(a==='tap') toggleTap(b);
+  else if(a==='opt') answer(parseInt(b.getAttribute('data-i'),10));
+  else if(a==='next') next();
+  else if(a==='share') share();
+});
+app.addEventListener('keydown', function(e){
+  if((e.key==='Enter' || e.key===' ') && e.target.getAttribute && e.target.getAttribute('data-act')==='tap'){ e.preventDefault(); toggleTap(e.target); }
+});
+app.addEventListener('mouseover', function(e){ var b = e.target.closest && e.target.closest('[data-url]'); if(b) showUrl(b.getAttribute('data-url')); });
+app.addEventListener('focusin', function(e){ var b = e.target.closest && e.target.closest('[data-url]'); if(b) showUrl(b.getAttribute('data-url')); });
+
+/* ambient bubbles */
+(function(){
+  var box = $('#bubbles');
+  for(var k=0;k<12;k++){
+    var i = document.createElement('i'), s = 10 + Math.random()*34;
+    i.style.cssText = 'left:'+(Math.random()*100)+'%;width:'+s+'px;height:'+s+'px;animation-duration:'+(16+Math.random()*16)+'s;animation-delay:-'+(Math.random()*20)+'s';
+    box.appendChild(i);
+  }
+})();
+
+render();
+})();
+</script>
+</body>
+</html>
